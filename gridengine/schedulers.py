@@ -108,7 +108,7 @@ class GridEngineScheduler(Scheduler):
 
     Only one instance may run per Python process, since the underlying drmaa
     layer is a singleton.
-
+    
     Keyword Args:
       Resources to be passed to the -l command of qsub. e.g.
         h_cpu: maximum time expressed in format '02:00:00' (2 hours)
@@ -141,18 +141,22 @@ class GridEngineScheduler(Scheduler):
       job_queue: the dict of {jobid, job.Job} items to run
 
     Keyword Args:
-      Resources to be passed to the -l command of qsub. These override any
-      arguments that were given to the constructor. e.g.
-        h_cpu: maximum time expressed in format '02:00:00' (2 hours)
-        h_vmem: maximum memory allocation before job is killed in format '10G' (10GB)
-        virtual_free: memory free on host BEFORE job can be allocated
+      Resources to be passed to qsub commands. These override any
+      arguments that were given to the constructor:
+        `-l` command:
+          h_cpu: maximum time expressed in format '02:00:00' (2 hours)
+          h_vmem: maximum memory allocation before job is killed in format '10G' (10GB)
+          virtual_free: memory free on host BEFORE job can be allocated
+        `-pe` command:
+          pe_type: either 'smp' or 'ompi' for shared memory or distributed memory.
+          n_slots: the number of slots to request to the grid engine.
     """
 
     # dont spin up the scheduler if there's nothing to do
     if not job_queue: return
 
     # update the keyword resources
-    resources = dict(self.resources.items() + resources.items())
+    resources = {**self.resources, **resources}
 
     # retrieve the job target
     target = job_queue[0].target
@@ -166,9 +170,17 @@ class GridEngineScheduler(Scheduler):
       jt.args = [submission_host]
       jt.jobName = resources.pop('name',target)
       jt.jobName = ''.join(jt.jobName.split())[:15]
-      jt.nativeSpecification = '-l ' + ','.join(
+      ## prepare -pe
+      if 'pe_type' in resources.keys() and 'n_slots' in resources.keys(): 
+        jt.nativeSpecification = '-pe '+' '.join([resources.pop('pe_type'),
+                                                  resources.pop('n_slots')])+' '
+      else:
+        jt.nativeSpecification = ''
+      ## prepare -l  
+      jt.nativeSpecification += '-l ' + ','.join(
         resource + '=' + str(value) for resource,value in resources.items()
       ) if resources else ''
+            
       jt.joinFiles = True
       jt.outputPath = ':'+os.path.expanduser(settings.TEMPDIR)
       jt.errorPath  = ':'+os.path.expanduser(settings.TEMPDIR)
