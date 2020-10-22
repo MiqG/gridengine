@@ -110,10 +110,15 @@ class GridEngineScheduler(Scheduler):
     layer is a singleton.
     
     Keyword Args:
-      Resources to be passed to the -l command of qsub. e.g.
-        h_cpu: maximum time expressed in format '02:00:00' (2 hours)
-        h_vmem: maximum memory allocation before job is killed in format '10G' (10GB)
-        virtual_free: memory free on host BEFORE job can be allocated
+      Resources to be passed to qsub commands. These override any
+      arguments that were given to the constructor:
+        `-l` command:
+          h_cpu: maximum time expressed in format '02:00:00' (2 hours)
+          h_vmem: maximum memory allocation before job is killed in format '10G' (10GB)
+          virtual_free: memory free on host BEFORE job can be allocated
+        `-pe` command:
+          pe_type: either 'smp' or 'ompi' for shared memory or distributed memory.
+          n_slots: the number of slots to request to the grid engine.
     """
     import drmaa
     self.drmaa = drmaa
